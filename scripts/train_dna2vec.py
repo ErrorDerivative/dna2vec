@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+
 sys.path.extend(['.', '..'])
 
 import glob
@@ -8,7 +9,7 @@ import logbook
 from logbook.compat import redirect_logging
 import configargparse
 import numpy as np
-from Bio import SeqIO
+
 from attic_util.time_benchmark import Benchmark
 from attic_util import util
 from attic_util.tee import Tee
@@ -18,14 +19,16 @@ from dna2vec.generators import DisjointKmerFragmenter, SlidingKmerFragmenter
 
 from gensim.models import word2vec
 
+
 class InvalidArgException(Exception):
     pass
+
 
 class Learner:
     def __init__(self, out_fileroot, context_halfsize, gensim_iters, vec_dim):
         self.logger = logbook.Logger(self.__class__.__name__)
-        assert(word2vec.FAST_VERSION >= 0)
-        self.logger.info('word2vec.FAST_VERSION (should be >= 0): {}'.format(word2vec.FAST_VERSION))
+        assert (word2vec.FAST_VERSION >= 0)
+        self.logger.info(f'word2vec.FAST_VERSION (should be >= 0): {word2vec.FAST_VERSION}')
         self.model = None
         self.out_fileroot = out_fileroot
         self.context_halfsize = context_halfsize
@@ -33,10 +36,10 @@ class Learner:
         self.use_skipgram = 1
         self.vec_dim = vec_dim
 
-        self.logger.info('Context window half size: {}'.format(self.context_halfsize))
-        self.logger.info('Use skipgram: {}'.format(self.use_skipgram))
-        self.logger.info('gensim_iters: {}'.format(self.gensim_iters))
-        self.logger.info('vec_dim: {}'.format(self.vec_dim))
+        self.logger.info(f'Context window half size: {self.context_halfsize}')
+        self.logger.info(f'Use skipgram: {self.use_skipgram}')
+        self.logger.info(f'gensim_iters: {self.gensim_iters}')
+        self.logger.info(f'vec_dim: {self.vec_dim}')
 
     def train(self, kmer_seq_generator):
         self.model = word2vec.Word2Vec(
@@ -48,11 +51,10 @@ class Learner:
             sg=self.use_skipgram,
             iter=self.gensim_iters)
 
-        # self.logger.info(model.vocab)
-
     def write_vec(self):
-        out_filename = '{}.w2v'.format(self.out_fileroot)
+        out_filename = f'{self.out_fileroot}.w2v'
         self.model.wv.save_word2vec_format(out_filename, binary=False)
+
 
 def run_main(args, inputs, out_fileroot):
     logbook.info(' '.join(sys.argv))
@@ -69,9 +71,9 @@ def run_main(args, inputs, out_fileroot):
     elif args.kmer_fragmenter == 'sliding':
         kmer_fragmenter = SlidingKmerFragmenter(args.k_low, args.k_high)
     else:
-        raise InvalidArgException('Invalid kmer fragmenter: {}'.format(args.kmer_fragmenter))
+        raise InvalidArgException(f'Invalid kmer fragmenter: {args.kmer_fragmenter}')
 
-    logbook.info('kmer fragmenter: {}'.format(args.kmer_fragmenter))
+    logbook.info(f'kmer fragmenter: {args.kmer_fragmenter}')
 
     histogram = Histogram()
     kmer_seq_iterable = KmerSeqIterable(
@@ -87,14 +89,16 @@ def run_main(args, inputs, out_fileroot):
     learner.train(kmer_seq_iterable)
     learner.write_vec()
 
-    histogram.print_stat(sys.stdout)
+    histogram.print_stat()
 
     benchmark.print_time()
+
 
 def main():
     argp = configargparse.get_argument_parser()
     argp.add('-c', is_config_file=True, help='config file path')
-    argp.add_argument('--kmer-fragmenter', help='disjoint or sliding', choices=['disjoint', 'sliding'], default='sliding')
+    argp.add_argument('--kmer-fragmenter', help='disjoint or sliding', choices=['disjoint', 'sliding'],
+                      default='sliding')
     argp.add_argument('--vec-dim', help='vector dimension', type=int, default=12)
     argp.add_argument('--rseed', help='general np.random seed', type=int, default=7)
     argp.add_argument('--rseed-trainset', help='random seed for generating training data', type=int, default=123)
@@ -123,20 +127,16 @@ def main():
     out_fileroot = util.get_output_fileroot(
         out_dir,
         'dna2vec',
-        'k{}to{}-{}d-{}c-{}Mbp-{}'.format(
-            args.k_low,
-            args.k_high,
-            args.vec_dim,
-            args.context,
-            mbytes * args.epochs,  # total Mb including epochs
-            args.kmer_fragmenter))
+        f'k{args.k_low}to{args.k_high}-{args.vec_dim}d-{args.context}'
+        f'c-{mbytes * args.epochs}Mbp-{ args.kmer_fragmenter}')
 
-    out_txt_filename = '{}.txt'.format(out_fileroot)
+    out_txt_filename = f'{out_fileroot}.txt'
     with open(out_txt_filename, 'w') as summary_fptr:
         with Tee(summary_fptr):
             logbook.StreamHandler(sys.stdout, level=log_level).push_application()
             redirect_logging()
             run_main(args, inputs, out_fileroot)
+
 
 if __name__ == '__main__':
     main()

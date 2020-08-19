@@ -1,5 +1,6 @@
 import sys
 
+
 class Tee(object):
     def __init__(self, fptr):
         self.file = fptr
